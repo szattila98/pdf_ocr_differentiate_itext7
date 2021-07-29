@@ -1,21 +1,21 @@
 package ch.dachs.pdf_ocr_differentiate_itext7;
 
-import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 
 import com.itextpdf.kernel.pdf.PdfDocument;
 import com.itextpdf.kernel.pdf.PdfReader;
+import com.itextpdf.kernel.pdf.canvas.PdfCanvasConstants.TextRenderingMode;
+import com.itextpdf.kernel.pdf.canvas.parser.EventType;
 import com.itextpdf.kernel.pdf.canvas.parser.PdfCanvasProcessor;
 import com.itextpdf.kernel.pdf.canvas.parser.listener.FilteredEventListener;
-import com.itextpdf.kernel.pdf.canvas.parser.listener.FilteredTextEventListener;
 
 import ch.dachs.pdf_ocr_differentiate_itext7.core.ImageInfo;
 import ch.dachs.pdf_ocr_differentiate_itext7.core.TextLine;
-import ch.dachs.pdf_ocr_differentiate_itext7.stripper.ImageInfoStripper;
-import ch.dachs.pdf_ocr_differentiate_itext7.stripper.TextAndTextStateStripper;
+import ch.dachs.pdf_ocr_differentiate_itext7.extraction.EventTypeFilter;
+import ch.dachs.pdf_ocr_differentiate_itext7.extraction.ImageInfoExtractionStrategy;
+import ch.dachs.pdf_ocr_differentiate_itext7.extraction.TextInfoExtractionStrategy;
 
 /**
  * Retrieves scanned image text from the document.
@@ -37,34 +37,26 @@ public class OCRImageTextRetriever {
 			int numberOfPages = doc.getNumberOfPages();
 			List<List<TextLine>> documentTextLinesPerImage = new ArrayList<>();
 			for (var currentPageNum = 1; currentPageNum < numberOfPages + 1; currentPageNum++) {
-				// retrieve images from the page
-				/*var pageImages = new ArrayList<ImageInfo>();
-				new ImageInfoStripper(pageImages).processPage(doc.getPage(currentPageNum - 1));
-				// retrieve text lines only if there is an image on the page
-				if (pageImages.isEmpty()) {
-					continue;
-				}*/
-				var pageTextLines = new ArrayList<TextLine>();
+				// retrieve images and text from the page
+				List<TextLine> pageTextLines = new ArrayList<>();
+				List<ImageInfo> pageImages = new ArrayList<>();
+				var textStrat = new TextInfoExtractionStrategy(pageTextLines);
+				var imageStrat = new ImageInfoExtractionStrategy(pageImages);
 				var listener = new FilteredEventListener();
-				var strat = new TextInfoExtractionStrategy(pageTextLines);
-				listener.attachEventListener(strat, new TextEventFilter());
+				listener.attachEventListener(textStrat, new EventTypeFilter(EventType.RENDER_TEXT));
+				listener.attachEventListener(imageStrat, new EventTypeFilter(EventType.RENDER_IMAGE));
 				PdfCanvasProcessor processor = new PdfCanvasProcessor(listener);
 				processor.processPageContent(doc.getPage(currentPageNum));
-				
-				for (var textLine : pageTextLines) {
-					System.out.println(textLine.getText());
-				}
-				
-				// only retain text lines which are contained by the image and their first
-				// character's rendering mode is invisible
-				/*var imageTextLines = new ArrayList<TextLine>();
+				// only retain text lines which are contained by the image and their rendering
+				// mode is invisible
+				var imageTextLines = new ArrayList<TextLine>();
 				for (var image : pageImages) {
-					pageTextLines.stream().filter(textLine -> textIsInImage(image, textLine))
-							.filter(textLine -> pageCharacterRenderingModes
-									.get(textLine.firstCharacter()) == RenderingMode.NEITHER)
+					pageTextLines.stream()
+							.filter(textLine -> textIsInImage(image, textLine)
+									&& textLine.getRenderingMode() == TextRenderingMode.INVISIBLE)
 							.forEach(imageTextLines::add);
 				}
-				documentTextLinesPerImage.add(imageTextLines);*/
+				documentTextLinesPerImage.add(imageTextLines);
 			}
 			return documentTextLinesPerImage;
 		}
@@ -77,12 +69,12 @@ public class OCRImageTextRetriever {
 	 * @param textLine  the text line
 	 * @return true if line is in the image, otherwise false
 	 */
-//	private boolean textIsInImage(ImageInfo imageInfo, TextLine textLine) {
-//		return textLine.getFirstCharacterXPosition() > imageInfo.getBottomLeftX()
-//				&& textLine.getFirstCharacterXPosition() < imageInfo.getTopRightX()
-//				&& textLine.getLastCharacterXPosition() > imageInfo.getBottomLeftX()
-//				&& textLine.getLastCharacterXPosition() < imageInfo.getTopRightX()
-//				&& textLine.getYPosition() > imageInfo.getBottomLeftY()
-//				&& textLine.getYPosition() < imageInfo.getTopRightY();
-//	}
+	private boolean textIsInImage(ImageInfo imageInfo, TextLine textLine) {
+		return textLine.getFirstCharacterX() > imageInfo.getBottomLeftX()
+				&& textLine.getFirstCharacterX() < imageInfo.getTopRightX()
+				&& textLine.getLastCharacterX() > imageInfo.getBottomLeftX()
+				&& textLine.getLastCharacterX() < imageInfo.getTopRightX()
+				&& textLine.getFirstCharacterY() > imageInfo.getBottomLeftY()
+				&& textLine.getFirstCharacterY() < imageInfo.getTopRightY();
+	}
 }

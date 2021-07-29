@@ -29,8 +29,15 @@ public class App {
 		var retriever = new OCRImageTextRetriever();
 		try {
 			var textLines = retriever.retrieve(args[0]).stream()
-					.map(textLineList -> textLineList.stream().map(TextLine::toString).collect(Collectors.toList()))
+					.map(textLineList -> textLineList.stream().map(TextLine::getText).collect(Collectors.toList()))
 					.collect(Collectors.toList());
+			
+			for (var list : textLines) {
+				for (var str : list) {
+					System.out.println(str);
+				}
+			}
+			
 			// new ResultWriter().write(textLines);
 			logger.info(SUCCESS_MSG);
 		} catch (IOException e) {
