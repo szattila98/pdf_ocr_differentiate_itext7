@@ -47,6 +47,7 @@ public class OCRImageTextRetriever {
 				listener.attachEventListener(imageStrat, new EventTypeFilter(EventType.RENDER_IMAGE));
 				PdfCanvasProcessor processor = new PdfCanvasProcessor(listener);
 				processor.processPageContent(doc.getPage(currentPageNum));
+				if (pageImages.isEmpty()) continue;
 				// only retain text lines which are contained by the image and their rendering
 				// mode is invisible
 				var imageTextLines = new ArrayList<TextLine>();
@@ -56,6 +57,7 @@ public class OCRImageTextRetriever {
 									&& textLine.getRenderingMode() == TextRenderingMode.INVISIBLE)
 							.forEach(imageTextLines::add);
 				}
+				if (imageTextLines.isEmpty()) continue;
 				documentTextLinesPerImage.add(imageTextLines);
 			}
 			return documentTextLinesPerImage;
